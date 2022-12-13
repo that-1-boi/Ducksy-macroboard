@@ -1,0 +1,743 @@
+//libraries needed to use the OLED display
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+//library used for keyboard and mouse commands
+#include <Keyboard.h>
+#include <Mouse.h>
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+unsigned long time;
+
+int buttonState = 0;
+int buttonPushCounter = 0;
+
+//for encoder
+int counter = 0;
+int currentEncoderState;
+int lastEncoderState;
+String currentDir ="";
+bool animationReset=true;
+
+
+
+const unsigned char Frame1 [] PROGMEM = {
+0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x3f, 0x80, 0x00,
+  0x00, 0x60, 0xc0, 0x00,
+  0x00, 0xc0, 0x60, 0x00,
+  0x00, 0x80, 0x20, 0x00,
+  0x01, 0x80, 0x30, 0x00,
+  0x01, 0x00, 0x10, 0x00,
+  0x01, 0x02, 0x10, 0x00,
+  0x01, 0xc2, 0x10, 0x00,
+  0x03, 0xf0, 0x20, 0x00,
+  0x0f, 0xf0, 0x20, 0x00,
+  0x0f, 0xf0, 0x40, 0x00,
+  0x00, 0x21, 0x80, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x61, 0x00, 0x00,
+  0x00, 0x41, 0x80, 0x00,
+  0x00, 0x80, 0xc0, 0x00,
+  0x03, 0x80, 0x7c, 0xc0,
+  0x06, 0x00, 0x0f, 0x38,
+  0x0c, 0x00, 0x06, 0x08,
+  0x08, 0x00, 0x03, 0x10,
+  0x18, 0x00, 0x01, 0x10,
+  0x10, 0x00, 0x01, 0x30,
+  0x20, 0x00, 0x00, 0x20,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0xc0,
+  0x18, 0x00, 0x00, 0x80,
+  0x08, 0x00, 0x00, 0x80,
+  0x0c, 0x00, 0x01, 0x80,
+  0x07, 0x00, 0x07, 0x00,
+  0x01, 0x80, 0x1c, 0x00,
+  0x00, 0xf0, 0x78, 0x00,
+  0x00, 0x9f, 0xc8, 0x00,
+  0x00, 0x90, 0x48, 0x00,
+  0x00, 0x90, 0x48, 0x00,
+  0x00, 0x90, 0x48, 0x00,
+  0x01, 0x90, 0xc8, 0x00,
+  0x01, 0x10, 0x88, 0x00,
+  0x01, 0xf0, 0xf8, 0x00,
+  0x00, 0x00, 0x00, 0x00,  
+};
+
+
+
+const unsigned char Frame2 [] PROGMEM = {
+0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x3f, 0x80, 0x00,
+  0x00, 0x60, 0xc0, 0x00,
+  0x00, 0xc0, 0x60, 0x00,
+  0x00, 0x80, 0x20, 0x00,
+  0x01, 0x80, 0x30, 0x00,
+  0x01, 0x00, 0x10, 0x00,
+  0x01, 0x02, 0x10, 0x00,
+  0x01, 0xc2, 0x10, 0x00,
+  0x03, 0xf0, 0x20, 0x00,
+  0x0f, 0xf0, 0x20, 0x00,
+  0x0f, 0xf0, 0x40, 0x00,
+  0x00, 0x21, 0x80, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x61, 0x00, 0x00,
+  0x00, 0x41, 0x80, 0x00,
+  0x00, 0x80, 0xc0, 0x00,
+  0x03, 0x80, 0x7c, 0xc0,
+  0x06, 0x00, 0x0f, 0x38,
+  0x0c, 0x00, 0x06, 0x08,
+  0x08, 0x00, 0x03, 0x10,
+  0x18, 0x00, 0x01, 0x10,
+  0x10, 0x00, 0x01, 0x30,
+  0x20, 0x00, 0x00, 0x20,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0xc0,
+  0x18, 0x00, 0x00, 0x80,
+  0x08, 0x00, 0x00, 0x80,
+  0x0c, 0x00, 0x01, 0x80,
+  0x07, 0x00, 0x07, 0x00,
+  0x01, 0x80, 0x1c, 0x00,
+  0x00, 0xf0, 0x78, 0x00,
+  0x00, 0x9f, 0xc8, 0x00,
+  0x00, 0x90, 0x48, 0x00,
+  0x00, 0x90, 0x48, 0x00,
+  0x00, 0x90, 0x48, 0x00,
+  0x01, 0x90, 0xc8, 0x00,
+  0x01, 0x10, 0x88, 0x00,
+  0x01, 0xf0, 0xf8, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+
+};
+
+
+
+const unsigned char Frame3 [] PROGMEM = {
+ 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x3f, 0x80, 0x00,
+  0x00, 0x60, 0xc0, 0x00,
+  0x00, 0xc0, 0x60, 0x00,
+  0x00, 0x80, 0x30, 0x00,
+  0x01, 0x80, 0x08, 0x00,
+  0x01, 0x00, 0x08, 0x00,
+  0x01, 0x02, 0x08, 0x00,
+  0x01, 0xc2, 0x08, 0x00,
+  0x03, 0xf0, 0x08, 0x00,
+  0x0f, 0xf0, 0x10, 0x00,
+  0x0f, 0xf0, 0x30, 0x00,
+  0x00, 0x20, 0xe0, 0x00,
+  0x00, 0x21, 0x80, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x61, 0x00, 0x00,
+  0x00, 0x41, 0x80, 0x00,
+  0x00, 0x80, 0xc0, 0x00,
+  0x03, 0x80, 0x7c, 0xc0,
+  0x06, 0x00, 0x0f, 0x38,
+  0x08, 0x00, 0x06, 0x08,
+  0x10, 0x00, 0x03, 0x10,
+  0x10, 0x00, 0x01, 0x10,
+  0x20, 0x00, 0x01, 0x30,
+  0x20, 0x00, 0x00, 0x20,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0xc0,
+  0x20, 0x00, 0x00, 0x80,
+  0x30, 0x00, 0x00, 0x80,
+  0x18, 0x00, 0x01, 0x80,
+  0x0c, 0x00, 0x07, 0x00,
+  0x03, 0x80, 0x1e, 0x00,
+  0x00, 0xf0, 0x7e, 0x00,
+  0x00, 0x5f, 0xe4, 0x00,
+  0x00, 0xc8, 0x4c, 0x00,
+  0x00, 0x98, 0x48, 0x00,
+  0x01, 0x90, 0xc8, 0x00,
+  0x01, 0x10, 0x88, 0x00,
+  0x01, 0xf0, 0xf8, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+
+};
+
+
+
+const unsigned char Frame4 [] PROGMEM = {
+
+
+
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x3f, 0x80, 0x00,
+  0x00, 0x60, 0xc0, 0x00,
+  0x00, 0xc0, 0x60, 0x00,
+  0x00, 0x80, 0x30, 0x00,
+  0x01, 0x80, 0x08, 0x00,
+  0x01, 0x00, 0x08, 0x00,
+  0x01, 0x02, 0x08, 0x00,
+  0x01, 0xc2, 0x08, 0x00,
+  0x03, 0xf0, 0x08, 0x00,
+  0x0f, 0xf0, 0x10, 0x00,
+  0x0f, 0xf0, 0x30, 0x00,
+  0x00, 0x20, 0xe0, 0x00,
+  0x00, 0x21, 0x80, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x61, 0x00, 0x00,
+  0x00, 0x41, 0x80, 0x00,
+  0x01, 0xc0, 0xe0, 0x00,
+  0x07, 0x80, 0x7c, 0xe0,
+  0x0e, 0x00, 0x1f, 0xa0,
+  0x18, 0x00, 0x04, 0x30,
+  0x30, 0x00, 0x04, 0x18,
+  0x60, 0x00, 0x02, 0x08,
+  0x40, 0x00, 0x00, 0x10,
+  0xc0, 0x00, 0x00, 0x10,
+  0x80, 0x00, 0x00, 0x10,
+  0x80, 0x00, 0x00, 0x30,
+  0x80, 0x00, 0x00, 0x20,
+  0xc0, 0x00, 0x00, 0x20,
+  0x40, 0x00, 0x00, 0x60,
+  0x60, 0x00, 0x00, 0x40,
+  0x30, 0x00, 0x01, 0x80,
+  0x0c, 0x00, 0x03, 0x00,
+  0x03, 0x80, 0x7e, 0x00,
+  0x01, 0xff, 0xcc, 0x00,
+  0x01, 0x10, 0x88, 0x00,
+  0x01, 0xf0, 0xf8, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+
+ 
+};
+
+
+
+const unsigned char Frame5 [] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x3f, 0x80, 0x00,
+  0x00, 0x60, 0xc0, 0x00,
+  0x00, 0xc0, 0x60, 0x00,
+  0x00, 0x80, 0x20, 0x00,
+  0x01, 0x80, 0x30, 0x00,
+  0x01, 0x00, 0x10, 0x00,
+  0x01, 0x02, 0x10, 0x00,
+  0x01, 0xc2, 0x10, 0x00,
+  0x03, 0xf0, 0x20, 0x00,
+  0x0f, 0xf0, 0x20, 0x00,
+  0x0f, 0xf0, 0x40, 0x00,
+  0x00, 0x21, 0x80, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x21, 0x00, 0x00,
+  0x00, 0x61, 0x00, 0x00,
+  0x00, 0x41, 0x80, 0x00,
+  0x00, 0x80, 0xc0, 0x00,
+  0x03, 0x80, 0x7c, 0xc0,
+  0x06, 0x00, 0x0f, 0x38,
+  0x0c, 0x00, 0x06, 0x08,
+  0x08, 0x00, 0x03, 0x10,
+  0x18, 0x00, 0x01, 0x10,
+  0x10, 0x00, 0x01, 0x30,
+  0x20, 0x00, 0x00, 0x20,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0x60,
+  0x20, 0x00, 0x00, 0xc0,
+  0x18, 0x00, 0x00, 0x80,
+  0x08, 0x00, 0x00, 0x80,
+  0x0c, 0x00, 0x01, 0x80,
+  0x07, 0x00, 0x07, 0x00,
+  0x01, 0x80, 0x1c, 0x00,
+  0x00, 0xf0, 0x78, 0x00,
+  0x01, 0x9f, 0xc8, 0x00,
+  0x01, 0x10, 0x88, 0x00,
+  0x01, 0xf0, 0xf8, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+
+};
+
+
+
+
+void setup() {
+  Serial.begin(115200);
+    pinMode(16, INPUT);
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address of OLED currently using
+  }
+  delay(2000); //2 second delay to initialize the oled
+  display.clearDisplay();
+
+//setup for input buttons
+  pinMode(4, INPUT_PULLUP);
+  pinMode(5, INPUT_PULLUP);
+  pinMode(6, INPUT_PULLUP);
+  pinMode(7, INPUT_PULLUP);
+  Keyboard.begin();
+
+lastEncoderState = digitalRead(14);
+ 
+}
+
+void loop() {
+
+
+  if(buttonPushCounter == 4) buttonPushCounter =0;
+  buttonState = digitalRead(16);
+
+  if (buttonState == LOW) { //if rotary push button press detected make push counter go up
+
+      buttonPushCounter += 1;
+      delay(400);
+   
+  }
+ 
+  switch (buttonPushCounter)
+  {
+    case 0:
+   
+      //static text on screen
+      display.fillRect(80, 0, 50, 50, BLACK);
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      display.setCursor(90, 5); //position where the text starts (x,y)
+      display.println("copy");
+      display.setCursor(90, 15);
+      display.println("paste");  
+      display.setCursor(90, 25);
+      display.println("undo");
+      display.setCursor(90, 35);
+      display.println("save");    
+      display.display(); //make sure display on screen
+
+      //functions
+       copy();
+       paste();
+       undo();
+       save();
+   
+    break;
+    case 1:
+      //static text
+      display.fillRect(80, 0, 50, 50, BLACK);
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      display.setCursor(90, 5); //position where the text starts (x,y)
+      display.println("up");
+      display.setCursor(90, 15);
+      display.println("down");  
+      display.setCursor(90, 25);
+      display.println("left");
+      display.setCursor(90, 35);
+      display.println("right");    
+      display.display(); //make sure display on screen
+
+      //functions
+      up();
+      down();
+      left();
+      right();
+
+       lastEncoderState = currentEncoderState;
+   
+    break;
+    case 2:
+
+    //static text
+    display.fillRect(80, 0, 50, 50, BLACK);
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(80, 5); //position where the text starts (x,y)
+    display.println("tab");
+    display.setCursor(80, 15);
+    display.println("window");  
+    display.setCursor(80, 25);
+    display.println("incog");
+    display.setCursor(80, 35);
+    display.println("close");    
+    display.display(); //make sure display on screen
+
+    //function
+    NewTab();
+    NewWindow();
+    Incognito();
+    CloseWindow();
+   
+    break;
+    case 3:
+
+    //static text
+    display.fillRect(80, 0, 50, 50, BLACK);
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(80, 5); //position where the text starts (x,y)
+    display.println("mic");
+    display.setCursor(80, 15);
+    display.println("video");  
+    display.setCursor(80, 25);
+    display.println("screen");
+    display.setCursor(80, 35);
+    display.println("endcall");    
+    display.display(); //make sure display on screen
+
+    //function
+    MuteMic();
+    VideoOffOn();
+    ScreenShare();
+    EndCall();
+   
+    break;
+  }
+    if (animationReset){
+ time=millis();
+ animationReset=false;
+  }
+ 
+  if (millis()<time+75){
+     // Diplay Animation
+       display.fillRect(0, 0, 64, 64, BLACK);
+    display.drawBitmap(19,19,Frame1, 30, 45, 1);
+  display.display();
+  }else if ((millis()<time+150)){
+   display.fillRect(0, 0, 64, 64, BLACK);
+ display.drawBitmap(19,19,Frame2, 30, 45, 1);
+ display.display();
+ }else if ((millis()<time+225)){
+   display.fillRect(0, 0, 64, 64, BLACK);
+ display.drawBitmap(19,19,Frame3, 30, 45, 1);
+ display.display();
+ }else if ((millis()<time+300)){
+   display.fillRect(0, 0, 64, 64, BLACK);
+ display.drawBitmap(19,19,Frame4, 30, 45, 1);
+ display.display();
+ }else if ((millis()<time+375)){
+   display.fillRect(0, 0, 64, 64, BLACK);
+ display.drawBitmap(19,19,Frame5, 30, 45, 1);
+ display.display();
+ }else if ((millis()<time+450)){
+   display.fillRect(0, 0, 64, 64, BLACK);
+ display.drawBitmap(19,19,Frame3, 30, 45, 1);
+ display.display();
+   }else if ((millis()<time+525)){
+   display.fillRect(0, 0, 64, 64, BLACK);
+ display.drawBitmap(19,19,Frame2, 30, 45, 1);
+ display.display();
+  }else{
+ animationReset=true;
+
+  }
+  EncoderFunction();
+ 
+}
+
+void copy(){
+     //if the button pin 4 is pressed it does copy command
+  if (digitalRead(4) == HIGH) {
+
+    //draw box around "copy"
+    display.drawRect(87, 4, 30, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 4, 30, 11, BLACK); //undos the rectangle
+    display.display();
+     
+    Keyboard.press(132);
+    Keyboard.write(99);    
+    while(millis()<time+400);
+    Keyboard.release(132);  //remember if no release key then laptop go die
+  }
+}
+
+void paste(){
+  //if the button pin 5 is pressed it does paste command
+  if (digitalRead(5) == HIGH) {
+
+    //draw box around "paste"
+    display.drawRect(87, 14, 35, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 14, 35, 11, BLACK);
+    display.display();
+   
+    Keyboard.press(132);
+    Keyboard.write(118);
+    while(millis()<time+400);
+    Keyboard.release(132);  //remember if no release key then laptop go die
+  }
+}
+
+void undo(){
+   //if the button pin 6 is pressed it does undo command
+  if (digitalRead(6) == HIGH) {
+
+    //draw box around "undo"
+    display.drawRect(87, 24, 30, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 24, 30, 11, BLACK);
+    display.display();
+   
+    Keyboard.press(132);
+    Keyboard.write(122);
+    while(millis()<time+400); //slightly longer delay so won't undo twice
+    Keyboard.release(132);  //remember if no release key then laptop go die
+  }
+}
+
+void save(){
+   //if the button pin 7 is pressed it does save command
+  if (digitalRead(7) == HIGH) {
+
+    //draw box around "save"
+    display.drawRect(87, 34, 30, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 34, 30, 11, BLACK);
+    display.display();
+   
+    Keyboard.press(132);
+    Keyboard.write(115);
+    while(millis()<time+400);
+    Keyboard.release(132);  //remember if no release key then laptop go die
+  }
+}
+
+void up(){
+  if (digitalRead(4) ==HIGH) {
+    display.drawRect(87, 4, 17, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 4, 17, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(KEY_UP_ARROW);
+    while(millis()<time+300);
+    Keyboard.release(KEY_UP_ARROW);
+  }
+}
+
+void down(){
+  if (digitalRead(5) ==HIGH) {
+    display.drawRect(87, 14, 30, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 14, 30, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(KEY_DOWN_ARROW);
+    while(millis()<time+300);
+    Keyboard.release(KEY_DOWN_ARROW);
+  }
+ }
+
+ void left(){
+  if (digitalRead(6) ==HIGH) {
+    display.drawRect(87, 23, 30, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 23, 30, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(KEY_LEFT_ARROW);
+    while(millis()<time+300);
+    Keyboard.release(KEY_LEFT_ARROW);
+  }
+ }
+
+ void right(){
+  if (digitalRead(7) ==HIGH) {
+    display.drawRect(87, 34, 35, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(87, 34, 35, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(KEY_RIGHT_ARROW);
+    while(millis()<time+300);
+    Keyboard.release(KEY_RIGHT_ARROW);
+  }
+ }
+
+ void NewTab(){
+  if (digitalRead(4) ==HIGH) {
+    display.drawRect(78, 4, 22, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 4, 22, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(132);
+    Keyboard.print("t");
+    while(millis()<time+400);
+    Keyboard.release(132);  //remember if no release key then laptop go die
+  }
+ }
+ 
+ void NewWindow(){
+  if (digitalRead(5) ==HIGH) {
+    display.drawRect(78, 14, 40, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 14, 40, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(132);
+    Keyboard.print("n");
+    while(millis()<time+400);
+    Keyboard.release(132);  //remember if no release key then laptop go die
+  }
+ }
+
+  void Incognito(){
+  if (digitalRead(6) ==HIGH) {
+    display.drawRect(78, 24, 35, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 24, 35, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(132);
+    Keyboard.press(133);
+    Keyboard.print("n");
+    while(millis()<time+400);
+    Keyboard.release(132);  //remember if no release key then laptop go die
+    Keyboard.release(133);
+  }
+ }
+
+   void CloseWindow(){
+  if (digitalRead(7) ==HIGH) {
+    display.drawRect(78, 34, 35, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 34, 35, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(132);
+    Keyboard.print("w");
+    while(millis()<time+400);
+    Keyboard.release(132);  //remember if no release key then laptop go die
+  }
+ }
+
+ void MuteMic(){
+  if (digitalRead(4) ==HIGH) {
+    display.drawRect(78, 4, 22, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 4, 22, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(130);
+    Keyboard.print("a");
+    while(millis()<time+400);
+    Keyboard.release(130);  //remember if no release key then laptop go die
+ }
+ }
+
+ void VideoOffOn(){
+  if (digitalRead(5) ==HIGH) {
+    display.drawRect(78, 14, 35, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 14, 35, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(130);
+    Keyboard.print("v");
+    while(millis()<time+400);
+    Keyboard.release(130);  //remember if no release key then laptop go die
+ }
+ }
+
+ void ScreenShare(){
+  if (digitalRead(6) ==HIGH) {
+    display.drawRect(78, 24, 40, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 24, 40, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(130);
+    Keyboard.press(133);
+    Keyboard.print("s");
+    while(millis()<time+400);
+    Keyboard.release(130);  //remember if no release key then laptop go die
+    Keyboard.release(133);
+ }
+ }
+
+ void EndCall(){
+  if (digitalRead(7) ==HIGH) {
+    display.drawRect(78, 34, 45, 11, WHITE);
+    display.display();
+    while(millis()<time+400);
+    display.drawRect(78, 34, 45, 11, BLACK); //undos the rectangle
+    display.display();
+
+    Keyboard.press(130);
+    Keyboard.print("q");
+    while(millis()<time+100);
+    Keyboard.print("9");
+    while(millis()<time+100);
+    Keyboard.release(130);  //remember if no release key then laptop go die
+    Keyboard.press(176);
+    while(millis()<time+100);
+    Keyboard.release(176);
+ }
+
+ }
+
+ void EncoderFunction(){
+    currentEncoderState = digitalRead(14);
+
+  if (currentEncoderState != lastEncoderState  && currentEncoderState == 1){
+
+    if (digitalRead(14) != currentEncoderState) {
+      currentDir ="left";
+    Keyboard.press(130);
+    Mouse.move(0,0,-2);
+    delay(200); //need a delay so that alt key can register while mouse is working to do photoshop zoom
+    Keyboard.release(130);
+    } else {
+      currentDir ="right";
+    Keyboard.press(130);
+    Mouse.move(0,0,-2);
+    delay(200);
+    Keyboard.release(130);
+    }
+   
+    Serial.println(currentDir);
+  }
+
+  lastEncoderState = currentEncoderState;
+ }
+
+
